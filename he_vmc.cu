@@ -4,8 +4,8 @@
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
 
-#define DX 0.15                 /* Step size also defined */
-#define BETA_STEP 0.01f
+#define DX 0.15
+#define BETA_STEP 0.01
 
 #define NUM_THREADS 16
 
@@ -61,7 +61,7 @@ __device__ double analytical_loc_en(double beta, double r1[3], double r2[3]){
 
 __global__ void monte_carlo_kernel(
     double beta,
-    double step_size,  // FIX: Changed to double
+    double step_size,
     int n_steps,
     int n_walkers,
     int n_eq,
@@ -79,7 +79,6 @@ __global__ void monte_carlo_kernel(
     double energy_sum = 0.0;
 
     for (int step = 0; step < n_steps; step++) {
-        // FIX: Use curand for all RNG operations
         int electron = (curand_uniform_double(&state) > 0.5) ? 1 : 2;
         double new_r[3];
         double p;
@@ -102,7 +101,6 @@ __global__ void monte_carlo_kernel(
             else memcpy(r2, new_r, 3*sizeof(double));
         }
 
-        // FIX: Skip equilibration steps
         if (step >= n_eq) {
             energy_sum += analytical_loc_en(beta, r1, r2);
         }
@@ -123,18 +121,16 @@ double* execute_mc(
     double *answers = (double*)malloc(n_betas * sizeof(double));
     double *d_energies;
 
-    // Allocate device memory only for energies
     cudaMalloc(&d_energies, n_walkers * sizeof(double));
 
     dim3 threads(NUM_THREADS);
     dim3 blocks((n_walkers + threads.x - 1) / threads.x);
 
     for (int i = 0; i < n_betas; i++) {
-        // Reset energies for each beta
         cudaMemset(d_energies, 0, n_walkers * sizeof(double));
         
         monte_carlo_kernel<<<blocks, threads>>>(
-            betas[i],  // Direct host value
+            betas[i],
             step_size,
             n_steps,
             n_walkers,
@@ -144,7 +140,6 @@ double* execute_mc(
         );
         cudaDeviceSynchronize();
 
-        // Copy results back
         double *h_energies = (double*)malloc(n_walkers * sizeof(double));
         cudaMemcpy(h_energies, d_energies, n_walkers * sizeof(double), cudaMemcpyDeviceToHost);
 
@@ -165,7 +160,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Parse input arguments
     int num_steps = atoi(argv[1]);
     int n_eq = atoi(argv[2]);
     int num_trajectories = atoi(argv[3]);
@@ -178,12 +172,10 @@ int main(int argc, char *argv[]) {
         betas[i] = 0.1 + i * BETA_STEP;
     }
 
-    // Run Monte Carlo simulations
     printf("Executing MC\n");
     double* energies = execute_mc(betas, n_betas, step_size, 
                                  num_trajectories, num_steps, n_eq, time(NULL));
 
-    // Write results to file
     FILE *fp = fopen("answers.txt", "w");
     if(!fp) {
         fprintf(stderr, "Error opening output file\n");
@@ -195,7 +187,6 @@ int main(int argc, char *argv[]) {
     }
     fclose(fp);
 
-    // Find and print minimum energy
     double min_energy = energies[0];
     for(int i = 1; i < n_betas; i++) {
         if(energies[i] < min_energy) {
