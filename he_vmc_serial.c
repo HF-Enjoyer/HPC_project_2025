@@ -3,10 +3,11 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define N_STEPS 2000            /* Number of MC steps for each electron */
-#define N_EQ 800                /* Equilibration (warm up) steps */
-#define N_TRJS 1024              /* 100 trajectories to reduce statistical variance */
+#define N_STEPS 10000            /* Number of MC steps for each electron */
+#define N_EQ 1000                /* Equilibration (warm up) steps */
+#define N_TRJS 128             /* more trajectories to reduce statistical variance */
 #define DX 0.15                 /* Step size also defined */
+#define BETA_STEP 0.01          /* search of betas */ 
 
 double euclidean_norm(double v[3]) {
     double sum = 0.0;
@@ -89,10 +90,7 @@ double variational_energy(double beta, double tr1[N_STEPS + 1][3], double tr2[N_
 }
 /* Energy block ends */
 /* Monte-Carlo block starts */
-/* Check this carefully */
 void random_walker(double beta, double step_size, int n_steps, double trajectory1[(N_STEPS+1)][3], double trajectory2[(N_STEPS+1)][3]) {
-    /* Initialize random number generator */
-    srand(time(NULL));
     
     /* Initialize electron positions */
     double r1[3] = {0.5, 0.5, 0.5};
@@ -173,9 +171,42 @@ double average_over_trajectories(double beta, int n_trajectories, double step_si
 }
 
 int main() {
-    double beta = 0.225;
-    double avg_energy = average_over_trajectories(beta, N_TRJS, DX, N_STEPS, N_EQ);
-    printf("Average total energy, eV: %f\n", 27.2114*avg_energy);
+    /* Initialize random number generator */
+    srand(time(NULL));
+
+    int n_betas = (0.5 - 0.1)  / BETA_STEP;
+    printf("N_STEPS: %d. N_EQ: %d. N_TRAJ: %d\n", N_STEPS, N_EQ, N_TRJS);
+    double betas[n_betas];
+    for(int i = 0; i < n_betas; i++) {
+        betas[i] = 0.1 + i * BETA_STEP;
+    }
+
+    double energies[n_betas];
+
+    printf("Executing MC\n");
+    for(int i = 0; i < n_betas; i++) {
+        double beta = betas[i];
+        energies[i] = average_over_trajectories(beta, N_TRJS, DX, N_STEPS, N_EQ);
+    }
+    
+    FILE *fp = fopen("results.txt", "w");
+    if(!fp) {
+        fprintf(stderr, "Error opening output file\n");
+        return 1;
+    }
+    
+    for(int i = 0; i < n_betas; i++) {
+        fprintf(fp, "%.4f\t%.8f\n", betas[i], energies[i] * 27.2114);
+    }
+    fclose(fp);
+
+    double min_energy = energies[0];
+    for(int i = 1; i < n_betas; i++) {
+        if(energies[i] < min_energy) {
+            min_energy = energies[i];
+        }
+    }
+    printf("Minimum energy: %.6f eV\n", min_energy * 27.2114);
+
     return 0;
 }
-/* Monte-Carlo block ends */
