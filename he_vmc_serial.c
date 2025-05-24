@@ -183,13 +183,17 @@ int main() {
 
     double energies[n_betas];
 
+    double time_start = clock();
+
     printf("Executing MC\n");
     for(int i = 0; i < n_betas; i++) {
         double beta = betas[i];
         energies[i] = average_over_trajectories(beta, N_TRJS, DX, N_STEPS, N_EQ);
     }
     
-    FILE *fp = fopen("results.txt", "w");
+    double time_end = clock();
+
+    FILE *fp = fopen("results_serial.txt", "w");
     if(!fp) {
         fprintf(stderr, "Error opening output file\n");
         return 1;
@@ -207,6 +211,8 @@ int main() {
         }
     }
     printf("Minimum energy: %.6f eV\n", min_energy * 27.2114);
+
+    printf("time: %.6f", time_end-time_start);
 
     return 0;
 }

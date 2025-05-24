@@ -6,7 +6,7 @@
 
 #define N_STEPS 10000            /* Number of MC steps for each electron */
 #define N_EQ 1000                /* Equilibration (warm up) steps */
-#define N_TRJS 128             /* more trajectories to reduce statistical variance */
+#define N_TRJS 64             /* more trajectories to reduce statistical variance */
 #define DX 0.15                 /* Step size also defined */
 #define BETA_STEP 0.01          /* search of betas */ 
 
